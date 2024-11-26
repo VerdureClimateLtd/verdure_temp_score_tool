@@ -61,7 +61,7 @@ def create_app():
 
     # Sidebar Configuration
     with st.sidebar:
-        st.image("C:/Users/LENOVO/Pictures/sbti tool/verd.png", width=70)  # Replace "logo.png" with the path to your logo
+        st.image("verd.png", width=70)  # Replace "logo.png" with the path to your logo
         st.markdown("<h2 style='display:inline; font-family:Arial;'>Verdure Climate</h2>", unsafe_allow_html=True)
 
         #st.markdown("---")

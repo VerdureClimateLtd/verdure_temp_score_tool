@@ -61,7 +61,7 @@ def create_app():
 
     # Sidebar Configuration
     with st.sidebar:
-        st.image("https://github.git comitcom/VerdureClimateLtd/verdure_temp_score_tool/blob/main/verd.png")
+        st.image("https://drive.google.com/file/d/1dYFtHKPfIRamXTFdrAGkAfiv7KRxgMM8/view?usp=sharing")
         st.markdown("<h2 style='display:inline; font-family:Arial;'>Verdure Climate</h2>", unsafe_allow_html=True)
 
         #st.markdown("---")
@@ -128,7 +128,8 @@ def create_app():
                     company_name=row['company_name'],
                     company_id=index,
                     investment_value=row['investment_value'],
-                    company_isin=row['company_isin']
+                    company_isin=row['company_isin'],
+                    user_fields={}
                 )
                 portfolio_companies.append(company)
 

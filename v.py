@@ -61,7 +61,7 @@ def create_app():
 
     # Sidebar Configuration
     with st.sidebar:
-        st.image("https://github.com/VerdureClimateLtd/verdure_temp_score_tool/blob/main/verd.png", width=300)  # Replace "logo.png" with the path to your logo
+        st.image("https://github.com/VerdureClimateLtd/verdure_temp_score_tool/blob/main/verd.png")
         st.markdown("<h2 style='display:inline; font-family:Arial;'>Verdure Climate</h2>", unsafe_allow_html=True)
 
         #st.markdown("---")

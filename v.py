@@ -64,10 +64,6 @@ def create_app():
         st.image("https://drive.google.com/file/d/1dYFtHKPfIRamXTFdrAGkAfiv7KRxgMM8/view?usp=sharing")
         st.markdown("<h2 style='display:inline; font-family:Arial;'>Verdure Climate</h2>", unsafe_allow_html=True)
 
-        #st.markdown("---")
-       # st.subheader("Companies")
-       # company_dropdown = st.selectbox("Select a company:", ["Company A", "Company B", "Company C"])
-
         st.button("Click here if you have issues", help="Learn how to use the app")
         with st.expander("How to use the app"):
             st.markdown("""
@@ -113,6 +109,12 @@ def create_app():
             provider = ExcelProvider(path=data_provider_file)
             target_data = pd.read_excel(data_provider_file, sheet_name="target_data")
 
+            # Add debugging information
+            st.write("Number of rows in target_data:", len(target_data))
+            st.write("Columns in target_data:", target_data.columns.tolist())
+            st.write("First few rows of target_data:")
+            st.write(target_data.head())
+
             # Show data preview
             st.header("Data Preview")
             st.subheader("Portfolio Data")
@@ -126,7 +128,7 @@ def create_app():
             for index, row in df_portfolio.iterrows():
                 company = PortfolioCompany(
                     company_name=row['company_name'],
-                    company_id=index,
+                    company_id=str(index),  # Convert to string
                     investment_value=row['investment_value'],
                     company_isin=row['company_isin'],
                     user_fields={}
@@ -155,58 +157,54 @@ def create_app():
             emission_results = []
             for index, row in df_portfolio.iterrows():
                 company_name = row['company_name']
-                company_id = index
+                company_id = str(index)  # Convert to string to ensure matching
 
                 # Fetch all rows for the company_id from target_data
-                company_targets = target_data[target_data['company_id'] == company_id]
+                company_targets = target_data[target_data['company_id'].astype(str) == company_id]
 
-                if not company_targets.empty:
-                    # Initialize variables with default values of 0
-                    base_year_ghg_s1 = 0
-                    base_year_ghg_s2 = 0
-                    base_year_ghg_s3 = 0
-                    reduction_ambition = 0
-                    start_year = None
-                    end_year = None
+                if company_targets.empty:
+                    st.warning(f"No targets found for company: {company_name} (ID: {company_id})")
+                    continue
 
-                    # Iterate through all rows for this company
-                    for _, target_row in company_targets.iterrows():
-                        # Update values if they exist and are not null
-                        if 'base_year_ghg_s1' in target_row and pd.notna(target_row['base_year_ghg_s1']):
-                            base_year_ghg_s1 = target_row['base_year_ghg_s1']
-                        if 'base_year_ghg_s2' in target_row and pd.notna(target_row['base_year_ghg_s2']):
-                            base_year_ghg_s2 = target_row['base_year_ghg_s2']
-                        if 'base_year_ghg_s3' in target_row and pd.notna(target_row['base_year_ghg_s3']):
-                            base_year_ghg_s3 = target_row['base_year_ghg_s3']
-                        if 'reduction_ambition' in target_row and pd.notna(target_row['reduction_ambition']):
-                            reduction_ambition = target_row['reduction_ambition']
-                        if 'start_year' in target_row and pd.notna(target_row['start_year']):
-                            start_year = target_row['start_year']
-                        if 'end_year' in target_row and pd.notna(target_row['end_year']):
-                            end_year = target_row['end_year']
+                # Initialize variables with default values
+                base_year_ghg_s1 = base_year_ghg_s2 = base_year_ghg_s3 = reduction_ambition = 0
+                start_year = end_year = None
 
-                    # Ensure we have valid years
-                    if start_year is None or end_year is None:
-                        # Use default values if years are missing
-                        start_year = 2020  # or any default start year
-                        end_year = 2030  # or any default end year
+                # Iterate through all rows for this company
+                for _, target_row in company_targets.iterrows():
+                    # Update values if they exist and are not null
+                    for col in ['base_year_ghg_s1', 'base_year_ghg_s2', 'base_year_ghg_s3', 'reduction_ambition', 'start_year', 'end_year']:
+                        if col in target_row and pd.notna(target_row[col]):
+                            locals()[col] = target_row[col]
 
-                    # Calculate emission reductions and temperature scores
-                    emissions_df = calculate_emissions_reduction(
-                        base_year_ghg_s1,
-                        base_year_ghg_s2,
-                        base_year_ghg_s3,
-                        reduction_ambition,
-                        start_year,
-                        end_year
-                    )
-                    emissions_df['Company Name'] = company_name
-                    emission_results.append(emissions_df)
+                # Ensure we have valid years
+                if start_year is None or end_year is None:
+                    st.warning(f"Missing start or end year for company: {company_name}. Using default values.")
+                    start_year = start_year or 2020
+                    end_year = end_year or 2030
+
+                # Calculate emission reductions and temperature scores
+                emissions_df = calculate_emissions_reduction(
+                    base_year_ghg_s1,
+                    base_year_ghg_s2,
+                    base_year_ghg_s3,
+                    reduction_ambition,
+                    start_year,
+                    end_year
+                )
+                emissions_df['Company Name'] = company_name
+                emission_results.append(emissions_df)
+
+            if not emission_results:
+                st.error("No emission results calculated. Please check your input data.")
+                return
 
             # Combine emission reduction results
             final_results = pd.concat(emission_results, ignore_index=True)
-            #st.header("Emission Reductions and Temperature Scores")
-            #st.dataframe(final_results)
+
+            if final_results.empty:
+                st.error("No results to display. Please check your input data and ensure targets are available for companies.")
+                return
 
             st.header("Results Visualization")
             st.subheader("Initial Emissions Breakdown")
@@ -258,62 +256,50 @@ def create_app():
                     z=viz_df['Temperature Score'],
                     mode='markers',
                     marker=dict(
-                        size=10,
+                        size=5,
                         color=viz_df['Temperature Score'],
                         colorscale='Viridis',
-                        showscale=True
-                    )
+                        opacity=0.8
+                    ),
+                    hoverinfo='text',
+                    text=viz_df.apply(lambda
+                                          row: f"Scope: {row['Scope']}<br>Time Period: {row['Time Period']}<br>Temperature Score: {row['Temperature Score']:.2f}",
+                                      axis=1)
                 )])
 
-                fig.update_layout(
-                    scene=dict(
-                        xaxis_title='Scope',
-                        yaxis_title='Time Period',
-                        zaxis_title='Temperature Score'
-                    ),
-                    width=700,
-                    height=650
-                )
+                fig.update_layout(scene=dict(
+                    xaxis_title='Scope',
+                    yaxis_title='Time Period',
+                    zaxis_title='Temperature Score'),
+                    margin=dict(r=0, b=0, l=0, t=0))
 
                 st.plotly_chart(fig)
 
-            # New visualization: Temperature Score Trends
-            st.subheader("Temperature Score Trends")
-            fig = go.Figure()
-
-            for company in final_results['Company Name'].unique():
-                company_data = final_results[final_results['Company Name'] == company]
-                fig.add_trace(go.Scatter(
-                    x=company_data['Year'],
-                    y=company_data['Temperature Score'],
-                    mode='lines+markers',
-                    name=company
-                ))
-
-            fig.update_layout(
-                title='Temperature Score Trends by Company',
-                xaxis_title='Year',
-                yaxis_title='Temperature Score (°C)',
-                yaxis_range=[1.5, 3.5],  # Adjust as needed
-                legend_title='Company'
-            )
-
+                # Emissions Trend
+            st.subheader("Emissions Trend")
+            fig = px.line(final_results, x='Year',
+                          y=['S1 Emissions', 'S2 Emissions', 'S3 Emissions', 'Total Emissions'],
+                          color='Company Name', title='Emissions Trend Over Time')
             st.plotly_chart(fig)
 
+            # Temperature Score Trend
+            st.subheader("Temperature Score Trend")
+            fig = px.line(final_results, x='Year', y='Temperature Score', color='Company Name',
+                          title='Temperature Score Trend Over Time')
+            st.plotly_chart(fig)
 
-
-            # Download results
-            st.header("Download Results")
+            # Download link for results
             csv = final_results.to_csv(index=False)
             st.download_button(
-                label="Download emission reductions and temperature scores as CSV",
+                label="Download Results as CSV",
                 data=csv,
-                file_name="emission_reductions_and_temperature_scores.csv",
-                mime="text/csv"
+                file_name="temperature_score_results.csv",
+                mime="text/csv",
             )
 
         except Exception as e:
             st.error(f"An error occurred: {str(e)}")
+            st.error("Please check your input files and try again.")
 
-if __name__ == "__main__":
-    create_app()
+        if __name__ == "__main__":
+            create_app()
